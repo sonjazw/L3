@@ -1,0 +1,13 @@
+#!/bin/bash
+
+#SBATCH --job-name=test1
+#SBATCH --output=out_test1_%J.out
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=64
+#SBATCH --ntasks=64
+#SBATCH --partition=ncpu
+
+module purge
+module load python
+export OMP_NUM_THREADS=64
+python3 ./test1_multiproc.py
