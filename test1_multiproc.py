@@ -23,6 +23,8 @@ phi = np.linspace(-180., 180., num=72)  # longitude in degrees
 
 phi_grid, theta_grid = np.meshgrid(phi, theta)
 radius_grid = radius*np.ones(phi_grid.shape) 
+temp_array = np.ndarray(theta_grid, phi_grid)
+I = temp_array.flatten('F')
 
 # Wicht criteria
 theta_c = 45.
@@ -57,6 +59,20 @@ def split_file(fname, number_steps):
 
 def fichiers(index:int, temps:List[float], ghlm:np.ndarray): # index
     
+    ilat = range(len(theta))
+    ilon = range(len(phi))
+
+    nlat = len(ilat)
+    nlon = len(ilon)
+
+    num_site = np.ones(phi_grid.shape)
+
+    for i in ilat:
+        for j in ilon:
+            num_site[i,j] = i*nlon + j
+
+    # potentiellement num_site = ilat*nlon + ilon
+
     coord = []
     for i,j in zip(range(len(temps)), tqdm(range(len(temps)),
                     initial=1, desc="Running", colour="blue")):
@@ -68,18 +84,23 @@ def fichiers(index:int, temps:List[float], ghlm:np.ndarray): # index
         coord.append((VGP_lat, VGP_lon))
         
         sys.stdout.flush()
-        
-    vgp_history = zip(temps, coord)
-        
+               
     vgp_lat, vgp_lon = zip(*coord)
       
+    vgp_lat_history = zip(num_site, temps, vgp_lat)
+    vgp_lon_history = zip(num_site, temps, vgp_lon)
+
     file_name = "vgp_history" + f"_{index}"
+    # file_name_lon = "vgp_lon_history" + f"_{index}"
 
     #np.savez(file_name, time = temps, vgp_lat = vgp_lat, vgp_lon = vgp_lon,
     #         vgp_history = vgp_history)
-    np.savez(file_name,  vgp_history = vgp_history)
+    # np.savez(file_name_lat, vgp_lat_history = vgp_lat_history)
+    ## np.savez(file_name_lon, vgp_lon_history = vgp_lon_history)
+
+    np.savez(file_name, vgp_lat_history = vgp_lat_history, vgp_lon_history = vgp_lon_history)
           
-    return vgp_history 
+    return 
 
 def fichiers_one_arg(args):
     return fichiers(*args)
@@ -155,6 +176,8 @@ def main():
     nproc = int( os.getenv("OMP_NUM_THREADS") )
     ind, temps, ghlm = split_file(fname, nproc)
    
+    for num_site in I :
+
    
     # npzfile = np.load(fname)
     # temps = npzfile["time"]
