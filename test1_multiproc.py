@@ -57,8 +57,6 @@ def split_file(fname, number_steps):
 
 def fichiers(index:int, temps:List[float], ghlm:np.ndarray): # index
     
-    # base_name = "30Ma_lat_temps"
-
     coord = []
     for i,j in zip(range(len(temps)), tqdm(range(len(temps)),
                     initial=1, desc="Running", colour="blue")):
@@ -74,9 +72,7 @@ def fichiers(index:int, temps:List[float], ghlm:np.ndarray): # index
     vgp_history = zip(temps, coord)
         
     vgp_lat, vgp_lon = zip(*coord)
-    
-    # file_name = base_name + f""_{index}
-    
+      
     file_name = "vgp_history" + f"_{index}"
 
     #np.savez(file_name, time = temps, vgp_lat = vgp_lat, vgp_lon = vgp_lon,
@@ -88,27 +84,19 @@ def fichiers(index:int, temps:List[float], ghlm:np.ndarray): # index
 def fichiers_one_arg(args):
     return fichiers(*args)
 
-def fichiers_coord_VGP(index:int, temps:List[float], ghlm:np.ndarray):
-    
-    ghlm = ghlm[:,None,None,:]
+def merge_files():
 
-    B_rad, B_th, B_p = vgp.comp_B(radius, theta, phi, ghlm)
-    # B_rad, B_th, B_p = synth_values(ghlm, radius, theta, phi, 
-    #                             nmax=13, mmax=13, grid=True)
+    import glob
+    flist = glob.glob("vgp_history_*.npz")
     
-    coord = []
-    
-    VGP_lat, VGP_lon = vgp.coord_VGP_globe(theta, phi, phi_grid, 
-                                           B_rad, B_th, B_p)#, lat_site, lon_site)
-    
-    coord.append(VGP_lat, VGP_lon)
-    vgp_history = zip(temps, coord)
-    
-    vgp_lat,vgp_lon = zip(*coord)
-    file_name = "vgp_history" + f"_{index}" + "_test"
-    #np.savez(file_name, time = temps, vgp_lat = vgp_lat, vgp_lon = vgp_lon,
-    #         vgp_history = vgp_history)
-    np.savez(file_name,  vgp_history = vgp_history)
+    data_all = [np.load(fname) for fname in flist]
+    merged_data = {}
+
+    for data in data_all:
+        [merged_data.update({k:v}) for k,v in data.items()]
+    np.savez('all_vgp_history.npz', **merged_data)
+
+    return 
     
 def Wicht(fname, lat_site, lon_site):
     
@@ -117,14 +105,15 @@ def Wicht(fname, lat_site, lon_site):
     latitude = npzfile["vgp_lat"]
     longitude = npzfile["vgp_lon"]
     
-    a = 180 // len(phi)
-    b = 90 // len(theta)
     
-    phi_site = int(lon_site + (180//a)-1)     # hardcoded, see how to do if we change the 
-    theta_site = int(lat_site + (90//b)-1)    #  sizes of theta and phi
+    a = 360 // len(phi)
+    b = 180 // len(theta)
+    
+    phi_index = (lon_site + 180) // a     # hardcoded, see how to do if we change the 
+    theta_index = (lat_site + 90) // b    #  sizes of theta and phi
     # period_index = [i for i in range(temps) if temps[i] == period]
     
-    vgp_lat, vgp_lon = latitude[:, theta_site, phi_site], longitude[:, theta_site, phi_site]
+    vgp_lat, vgp_lon = latitude[:, theta_index, phi_index], longitude[:, theta_index, phi_index]
     
     exc, exc_time, rev, rev_time = vgp.count(temps, vgp_lat, theta_c, Tn, Ts)
     
@@ -165,7 +154,8 @@ def main():
     fname = "t_gauss_nskip1_E1e4_Ra1.5e4_Pm3.5_hdiff_short.npz"
     nproc = int( os.getenv("OMP_NUM_THREADS") )
     ind, temps, ghlm = split_file(fname, nproc)
-    
+   
+   
     # npzfile = np.load(fname)
     # temps = npzfile["time"]
     # ghlm = npzfile["ghlm"]
@@ -189,13 +179,4 @@ def main():
 if __name__ == "__main__":
     main()
     execute()
-
-# for it in range(len(temps)):
-#     fichiers(temps[it], ghlm[it], index[it])
-
-"""
-save a npz . with different Wicht criteria
-    theta_c | Tn | Ts | coord site |  number exc | mean time exc | num rev | mean time rev
-"""
-
     
