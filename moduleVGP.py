@@ -33,13 +33,10 @@ def comp_B(radius, theta, phi, coeffs_gauss):
     return B_radius, B_theta, B_phi
 
 
-def coord_VGP_globe(theta, phi, phi_grid, B_radius, B_theta, B_phi):#, lat_site, lon_site) :
+def coord_VGP_globe(theta, phi, B_radius, B_theta, B_phi):#, lat_site, lon_site) :
     """ retourne les coordonnees du VGP pour un site donnée (calcul pour  tous
         le globe)
     """
-    
-    # Br btheta bphi are 3D arrays, fiirst dimension time, second theta, third phi
-    # we want to broadcast all the arrays along this first dimension
       
     Z = -B_radius   
     Y =  B_phi
@@ -59,27 +56,20 @@ def coord_VGP_globe(theta, phi, phi_grid, B_radius, B_theta, B_phi):#, lat_site,
     ls = np.radians(90 - theta) # ls is an array shape (179,)
     phi_s = np.radians(phi) # np:shape(phi) = (361,)  
     
-    phi_s_grid, ls_grid = np.meshgrid(phi_s, ls) # lambda_grid shape (179,361)
-    phi_p = np.ones(phi_s_grid.shape)
+    # phi_s_grid, ls_grid = np.meshgrid(phi_s, ls) # lambda_grid shape (179,361)
+    phi_p = np.ones(phi_s.shape)
 
-    lp_rad = np.arcsin(np.sin(ls_grid)*cosp + np.cos(ls_grid)*sinp*cosD )
+    lp_rad = np.arcsin(np.sin(ls)*cosp + np.cos(ls)*sinp*cosD )
     beta = np.arcsin(sinp*sinD / np.cos(lp_rad))
-    
-    # for i in range (0, len(theta)):
-    #     for j in range (0,len(phi)):
-    #         if cosp[i,j] >= np.sin(ls_grid[i,j])*np.sin(lp_rad[i,j]):
-    #             phi_p[i,j] = np.degrees(phi_s_grid[i,j]) + np.degrees(beta[i,j])
-    #         else :
-    #             phi_p[i,j] = np.degrees(phi_s_grid[i,j]) + 180 - np.degrees(beta[i,j])
                 
-    product = np.sin(ls_grid)*np.sin(lp_rad)
-    condition = cosp >= product 
+    product = np.sin(ls)*np.sin(lp_rad)
+    condition = (cosp >= product) 
     
-    phi_s_grid_degrees = np.degrees(phi_s_grid)
+    phi_s_degrees = np.degrees(phi_s)
     beta_degrees = np.degrees(beta)
     
-    phi_p[condition] = phi_s_grid_degrees[condition] + beta_degrees[condition]
-    phi_p[~condition] = phi_s_grid_degrees[~condition] + 180 - beta_degrees[~condition]  
+    phi_p[condition] = phi_s_degrees[condition] + beta_degrees[condition]
+    phi_p[~condition] = phi_s_degrees[~condition] + 180 - beta_degrees[~condition]  
                 
     lp = np.degrees(lp_rad)
     
@@ -100,61 +90,61 @@ def coord_VGP_globe(theta, phi, phi_grid, B_radius, B_theta, B_phi):#, lat_site,
 # il faudrait faire une fonction qui ne determine le vgp qu'en une seule 
 # coordonées pour les temps de calculs.
 
-def coord_VGP(theta, phi, phi_grid, B_radius, B_theta, B_phi): #, lat_site, lon_site) :
-    """ Calcul les coordonnées d'un VGP à un unique site. 
-        lat_site between [-89, 89] and lon_site between [-180,180]
-    """
+# def coord_VGP(theta, phi, phi_grid, B_radius, B_theta, B_phi): #, lat_site, lon_site) :
+#     """ Calcul les coordonnées d'un VGP à un unique site. 
+#         lat_site between [-89, 89] and lon_site between [-180,180]
+#     """
       
-    Z = -B_radius   
-    Y =  B_phi
-    X = -B_theta
+#     Z = -B_radius   
+#     Y =  B_phi
+#     X = -B_theta
     
-    #Calcul de D et I 
-    H = np.sqrt(X**2 + Y**2)
-    D = np.arctan2(Y,X)
-    I = np.arctan2(Z,H)
-    p = np.arctan2(2, np.tan(I))
+#     #Calcul de D et I 
+#     H = np.sqrt(X**2 + Y**2)
+#     D = np.arctan2(Y,X)
+#     I = np.arctan2(Z,H)
+#     p = np.arctan2(2, np.tan(I))
     
-    cosp = np.cos(p) # array (179, 361)
-    sinp = np.sin(p)
-    cosD = np.cos(D)
-    sinD = np.sin(D)
+#     cosp = np.cos(p) # array (179, 361)
+#     sinp = np.sin(p)
+#     cosD = np.cos(D)
+#     sinD = np.sin(D)
             
-    ls = np.radians(90 - theta) # ls is an array shape (179,)
-    phi_s = np.radians(phi) # np:shape(phi) = (361,)  
+#     ls = np.radians(90 - theta) # ls is an array shape (179,)
+#     phi_s = np.radians(phi) # np:shape(phi) = (361,)  
     
-    phi_s_grid, ls_grid = np.meshgrid(phi_s, ls) # lambda_grid shape (179,361)
-    phi_p = np.ones(phi_s_grid.shape)
+#     phi_s_grid, ls_grid = np.meshgrid(phi_s, ls) # lambda_grid shape (179,361)
+#     phi_p = np.ones(phi_s_grid.shape)
 
-    lp_rad = np.arcsin(np.sin(ls_grid)*cosp + np.cos(ls_grid)*sinp*cosD )
-    beta = np.arcsin(sinp*sinD / np.cos(lp_rad))
+#     lp_rad = np.arcsin(np.sin(ls_grid)*cosp + np.cos(ls_grid)*sinp*cosD )
+#     beta = np.arcsin(sinp*sinD / np.cos(lp_rad))
     
-    # for i in range (0, len(theta)):
-    #     for j in range (0,len(phi)):
-    #         if cosp[i,j] >= np.sin(ls_grid[i,j])*np.sin(lp_rad[i,j]):
-    #             phi_p[i,j] = np.degrees(phi_s_grid[i,j]) + np.degrees(beta[i,j])
-    #         else :
-    #             phi_p[i,j] = np.degrees(phi_s_grid[i,j]) + 180 - np.degrees(beta[i,j])
+#     # for i in range (0, len(theta)):
+#     #     for j in range (0,len(phi)):
+#     #         if cosp[i,j] >= np.sin(ls_grid[i,j])*np.sin(lp_rad[i,j]):
+#     #             phi_p[i,j] = np.degrees(phi_s_grid[i,j]) + np.degrees(beta[i,j])
+#     #         else :
+#     #             phi_p[i,j] = np.degrees(phi_s_grid[i,j]) + 180 - np.degrees(beta[i,j])
                 
-    product = np.sin(ls_grid)*np.sin(lp_rad)
-    condition = cosp >= product 
+#     product = np.sin(ls_grid)*np.sin(lp_rad)
+#     condition = cosp >= product 
     
-    phi_s_grid_degrees = np.degrees(phi_s_grid)
-    beta_degrees = np.degrees(beta)
+#     phi_s_grid_degrees = np.degrees(phi_s_grid)
+#     beta_degrees = np.degrees(beta)
     
-    phi_p[condition] = phi_s_grid_degrees[condition] + beta_degrees[condition]
-    phi_p[~condition] = phi_s_grid_degrees[~condition] + 180 - beta_degrees[~condition]  
+#     phi_p[condition] = phi_s_grid_degrees[condition] + beta_degrees[condition]
+#     phi_p[~condition] = phi_s_grid_degrees[~condition] + 180 - beta_degrees[~condition]  
                 
-    lp = np.degrees(lp_rad)
+#     lp = np.degrees(lp_rad)
     
-    a = 180 // len(phi)
-    b = 90 // len(theta)
+#     a = 180 // len(phi)
+#     b = 90 // len(theta)
     
-    phi_site = lon_site + (180//a)     # hardcoded, see how to do if we change the 
-    theta_site = lat_site + (90//b)    #  sizes of theta and phi
+#     phi_site = lon_site + (180//a)     # hardcoded, see how to do if we change the 
+#     theta_site = lat_site + (90//b)    #  sizes of theta and phi
     
-    # return VGP_lon, VGP_lat
-    return lp[theta_site, phi_site], phi_p[theta_site, phi_site]
+#     # return VGP_lon, VGP_lat
+#     return lp[theta_site, phi_site], phi_p[theta_site, phi_site]
 
 def periods(time, latitude, theta_c, Tn , Ts):
     """ Returns the tables T1 qnd T2 respectivly being the array  where theta
@@ -293,8 +283,8 @@ def count(time, latitude, theta_c, Tn , Ts):
             reversal += 1
             reversal_time.append(length[i])
         
-    print('Excursions : ', excursion, 'Length of excursions : ', excursion_time )          
-    print('Reversals : ', reversal, 'Length of reversal : ', reversal_time)
+    # print('Excursions : ', excursion) , 'Length of excursions : ', excursion_time )          
+    # print('Reversals : ', reversal) ,'Length of reversal : ', reversal_time)
     
     return excursion, excursion_time, reversal, reversal_time
         
