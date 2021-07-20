@@ -8,7 +8,7 @@ Created on Thu Jul  8 19:58:39 2021
 
 from multiprocessing import Pool
 import numpy as np
-import moduleVGP as vgp
+from moduleVGP import coord_VGP_globe, comp_B_long, count
 from chaosmagpy.model_utils import synth_values
 from tqdm import tqdm
 import time
@@ -16,15 +16,22 @@ from typing import List
 import sys 
 import os
 
+_PATH_CD = os.getcwd()
+_PATH_NPZ = _PATH_CD + "/NPZ/"
+
 # create full grid  all caps
 radius = 6371.2  # km, core-mantle boundary
-theta = np.linspace(1., 179., num=37)  # colatitude in degrees
-phi = np.linspace(-180., 180., num=72)  # longitude in degrees
+theta = np.linspace(1., 179., num=17)  # colatitude in degrees
+phi = np.linspace(-180., 180., num=24)  # longitude in degrees
 
 phi_grid, theta_grid = np.meshgrid(phi, theta)
 radius_grid = radius*np.ones(phi_grid.shape) 
-temp_array = np.ndarray(theta_grid, phi_grid)
-I = temp_array.flatten('F')
+phi_1D = phi_grid.flatten()
+theta_1D = theta_grid.flatten()
+radius_1D = radius*np.ones_like(phi_1D)
+
+PHI = 360
+THETA = 180
 
 # Wicht criteria
 theta_c = 45.
@@ -58,47 +65,30 @@ def split_file(fname, number_steps):
     return index_steps, temps_ , ghlm_   
 
 def fichiers(index:int, temps:List[float], ghlm:np.ndarray): # index
-    
-    ilat = range(len(theta))
-    ilon = range(len(phi))
-
-    nlat = len(ilat)
-    nlon = len(ilon)
-
-    num_site = np.ones(phi_grid.shape)
-
-    for i in ilat:
-        for j in ilon:
-            num_site[i,j] = i*nlon + j
-
-    # potentiellement num_site = ilat*nlon + ilon
 
     coord = []
     for i,j in zip(range(len(temps)), tqdm(range(len(temps)),
                     initial=1, desc="Running", colour="blue")):
         gh = ghlm[i,:]
-        B_rad, B_th, B_p = vgp.comp_B_long(radius_grid, theta_grid, phi_grid, gh)
+        B_rad, B_th, B_p = comp_B_long(radius_1D, theta_1D, phi_1D, gh)
         
-        VGP_lat, VGP_lon = vgp.coord_VGP_globe(theta, phi,  phi_grid, 
+        VGP_lat, VGP_lon = coord_VGP_globe(theta_1D, phi_1D,
                                                 B_rad, B_th, B_p)#, lat_site,lon_site)
+
         coord.append((VGP_lat, VGP_lon))
         
         sys.stdout.flush()
                
     vgp_lat, vgp_lon = zip(*coord)
-      
-    vgp_lat_history = zip(num_site, temps, vgp_lat)
-    vgp_lon_history = zip(num_site, temps, vgp_lon)
 
-    file_name = "vgp_history" + f"_{index}"
+    if not os.path.exists(_PATH_NPZ):
+        os.makedirs(_PATH_NPZ)
+
+    file_name = _PATH_NPZ + "vgp_history" + f"_{index}"
     # file_name_lon = "vgp_lon_history" + f"_{index}"
 
-    #np.savez(file_name, time = temps, vgp_lat = vgp_lat, vgp_lon = vgp_lon,
-    #         vgp_history = vgp_history)
-    # np.savez(file_name_lat, vgp_lat_history = vgp_lat_history)
-    ## np.savez(file_name_lon, vgp_lon_history = vgp_lon_history)
-
-    np.savez(file_name, vgp_lat_history = vgp_lat_history, vgp_lon_history = vgp_lon_history)
+    np.savez(file_name, theta_site = theta_1D, phi_site = phi_1D, 
+             time = temps, vgp_lat_history = vgp_lat, vgp_lon_history = vgp_lon)
           
     return 
 
@@ -106,45 +96,93 @@ def fichiers_one_arg(args):
     return fichiers(*args)
 
 def merge_files():
-
     import glob
-    flist = glob.glob("vgp_history_*.npz")
-    
-    data_all = [np.load(fname) for fname in flist]
-    merged_data = {}
 
-    for data in data_all:
-        [merged_data.update({k:v}) for k,v in data.items()]
-    np.savez('all_vgp_history.npz', **merged_data)
+    fname_list = glob.glob("vgp_history_*.npz")
+    fname_number = []
+    for name in fname_list:
+        name = name[12:-4]
+        fname_number.append(name)
+
+    sorted_numbers = sorted(fname_number, key = int)
+    flist = []     # sorted fnames
+    for number in sorted_numbers:
+        for filename in fname_list:
+            if "vgp_history_" + number + ".npz" == filename:
+                flist.append(filename)
+   # print(flist)
+   # sys.exit()
+
+#    flist3 = glob.glob(_PATH_NPZ + "vgp_history_???.npz")
+#    flist4 = glob.glob(_PATH_NPZ + "vgp_history_????.npz")
+#    flist5 = glob.glob(_PATH_NPZ + "vgp_history_?????.npz")
+#    flist6 = glob.glob(_PATH_NPZ + "vgp_history_??????.npz")
+#    print( sorted(flist3)+sorted(flist4)+sorted(flist5)+sorted(flist6) )
+#    flist = sorted(flist3)+sorted(flist4)+sorted(flist5)+sorted(flist6) 
+
+    for k,file in enumerate(flist):
+        data = np.load(file)
+        #print(np.shape(data['time']))
+        if k == 0:
+            my_time = data['time']
+            my_vgp_lat = data['vgp_lat_history']
+        else:
+            my_time = np.concatenate( (my_time, data['time']), dtype=float)
+            my_vgp_lat = np.concatenate( (my_vgp_lat, data['vgp_lat_history']), dtype=float)
+
+    print(np.shape(my_time))
+   
+    all_time = np.array( my_time, dtype = float )
+    all_vgp_lat = np.array( my_vgp_lat, dtype=float )
+
+    theta_site = data['theta_site']
+    phi_site = data['phi_site']
+
+
+
+
+    np.savez(_PATH_NPZ + 'all_vgp_history.npz', time = all_time, 
+             theta_site = theta_site, phi_site = phi_site,
+             vgp_lat_history = all_vgp_lat)
 
     return 
-    
-def Wicht(fname, lat_site, lon_site):
-    
+
+def Wicht(fname): #, lat_site, lon_site):
+
     npzfile = np.load(fname)
+    theta_site = npzfile["theta_site"]
+    phi_site = npzfile["phi_site"]
+    vgp_hist_lat = npzfile["vgp_lat_history"]
+    #vgp_hist_lon = npzfile["vgp_lon_history"]
     temps = npzfile["time"]
-    latitude = npzfile["vgp_lat"]
-    longitude = npzfile["vgp_lon"]
+
+    # a = PHI // len(phi)
+    # b = THETA // len(theta)
     
+    # phi_index = (lon_site + 180) // a     
+    # theta_index = (lat_site + 90) // b   
     
-    a = 360 // len(phi)
-    b = 180 // len(theta)
+    # vgp_lat, vgp_lon = vgp_hist_lat[theta_index, phi_index], vgp_hist_lon[theta_index, phi_index]
+
+    mean_exc = np.zeros_like(theta_site)
+    mean_rev = np.zeros_like(theta_site)
+
+    exc = np.zeros_like(theta_site)
+    rev = np.zeros_like(theta_site)
+
+    for i_site ,j in zip(range(len(theta_site)), tqdm(range(len(theta_site)), 
+                    initial=1, desc="Running", colour="blue")):
+        print(i_site)
+        exc[i_site], exc_time, rev[i_site], rev_time =count(temps, vgp_hist_lat[:,i_site], theta_c, Tn, Ts)
+        mean_exc[i_site] = np.mean(exc_time)
+        mean_rev[i_site] = np.mean(rev_time)
+        print(exc, exc_time)
+        print(rev, rev_time)
     
-    phi_index = (lon_site + 180) // a     # hardcoded, see how to do if we change the 
-    theta_index = (lat_site + 90) // b    #  sizes of theta and phi
-    # period_index = [i for i in range(temps) if temps[i] == period]
+    file_name = _PATH_NPZ + "Wicht_" + fname
     
-    vgp_lat, vgp_lon = latitude[:, theta_index, phi_index], longitude[:, theta_index, phi_index]
-    
-    exc, exc_time, rev, rev_time = vgp.count(temps, vgp_lat, theta_c, Tn, Ts)
-    
-    mean_exc = np.mean(exc_time)
-    mean_rev = np.mean(rev_time)
-    
-    file_name = "Wicht" + fname
-    
-    np.savez(file_name, theta_c = theta_c, Tn = Tn, Ts = Ts, 
-             vgp_lat = vgp_lat, vgp_lon = vgp_lon, 
+    np.savez(file_name, theta_c = theta_c, Tn = Tn, Ts = Ts,
+             theta_site = theta_site, phi_site = phi_site,
              excursions = exc, length_excursion = mean_exc,
              reversals = rev, length_reversal = mean_rev)
     
@@ -154,52 +192,42 @@ def Wicht_one_arg(args):
     return Wicht(*args)
 
 def execute():
-    
     import glob
-    #fname = ["vgp_history_119808.npz","vgp_history_239616.npz","vgp_history_359423.npz",
-    #         "vgp_history_479230.npz","vgp_history_599037.npz","vgp_history_718844.npz"]
-    fname = glob.glob("vgp_history_*.npz")
-    nproc = int( os.getenv("OMP_NUM_THREADS") )
-    
-    latitude_site = lat_site*np.ones(len(fname))
-    longitude_site = lon_site*np.ones(len(fname))
 
+    fname = _PATH_NPZ + "all_vgp_history.npz"
+    # nproc = int( os.getenv("OMP_NUM_THREADS") )
+    
+    # latitude_site = lat_site*np.ones(len(fname))
+    # longitude_site = lon_site*np.ones(len(fname))
+
+    """
     t1 = time.time()
     with Pool(nproc) as p:
-        p.map(Wicht_one_arg, zip(fname, latitude_site, longitude_site))
+        p.map(Wicht, fname)
     t2 = time.time()
     print(f'Time to process with multiprocessing : {t2-t1:4.3f}')
-    
+    """
+    Wicht(fname)
+
 def main():
     
     fname = "t_gauss_nskip1_E1e4_Ra1.5e4_Pm3.5_hdiff_short.npz"
     nproc = int( os.getenv("OMP_NUM_THREADS") )
     ind, temps, ghlm = split_file(fname, nproc)
-   
-    for num_site in I :
-
-   
-    # npzfile = np.load(fname)
-    # temps = npzfile["time"]
-    # ghlm = npzfile["ghlm"]
     
     # t1 = time.time() # retourne temps sur ordi en s precision ns
-    
     # for it in range(len(temps)):
     #     fichiers(ind[it], temps[it], ghlm[it])
-    
     # t2 = time.time()
     # print(f'Time to process sequentially : {t2-t1:4.3f}')
-    
     
     t1 = time.time()
     with Pool(nproc) as p:
         p.map(fichiers_one_arg, zip(ind, temps,ghlm))
-        # p.map(fichiers, temps, ghlm)
     t2 = time.time()
     print(f'Time to process with multiprocessing : {t2-t1:4.3f}')
     
 if __name__ == "__main__":
-    main()
+    # main()
+    merge_files()
     execute()
-    
