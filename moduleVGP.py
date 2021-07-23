@@ -10,55 +10,81 @@ import numpy as np
 from chaosmagpy.model_utils import synth_values
 
 def comp_B_long(radius_grid, theta_grid, phi_grid, coeffs_gauss):
-    """ retourne les composantes de B
+    """ Returns the components of the magnetic field. If chaosmagpy package is 
+        loaded in the main, one could also directly use synth_values from 
+        chaosmagpy.model_utils.
+
+    Parameters
+    ----------
+    radius_grid : ndarray 
+        Array containing the radius in kilometers.
+    theta_grid : ndarray
+        Array containing the latitude in degrees.
+    phi_grid : ndarray
+        Array containing the longitude in degrees.
+    coeffs_gauss : ndarray
+        Array containing the Gauss coefficients up to n = 13.
+
+    Returns
+    -------
+    B_radius, B_theta, B_phi : ndarray
+        Radial, colatitude and azimuthal field components.
     """
     
-    B_radius, B_theta, B_phi = synth_values(coeffs_gauss, radius_grid, theta_grid, phi_grid, nmax=13, mmax=13)
-    
-    # print(np.min(B_phi))
-    # print(np.max(B_phi))
-    
+    B_radius, B_theta, B_phi = synth_values(coeffs_gauss, radius_grid, theta_grid, phi_grid, 
+                                            nmax=13, mmax=13)
     return B_radius, B_theta, B_phi
 
 def comp_B(radius, theta, phi, coeffs_gauss):
-    """ retourne les composantes de B
+    """ Tentative de rendre les calculs plus rapides, pas terminé
     """
-    
     B_radius, B_theta, B_phi = synth_values(coeffs_gauss, radius, theta, 
                                             phi, nmax=13, mmax=13, grid=True)
-    
-    # print(np.min(B_phi))
-    # print(np.max(B_phi))
-    
     return B_radius, B_theta, B_phi
 
 
 def coord_VGP_globe(theta, phi, B_radius, B_theta, B_phi):#, lat_site, lon_site) :
-    """ retourne les coordonnees du VGP pour un site donnée (calcul pour  tous
-        le globe)
+    """ Returns the VGP coordinates of all the given sites.
+
+    Parameters
+    ----------
+    theta : ndarray
+        Array containing the colatitude in degrees.
+    phi : ndarray
+        Array containing the longitude in degrees.
+    B_radius, B_theta, B_phi : ndarray
+        Field components of the magnetic field.
+
+    Returns
+    -------
+    lp : ndarray
+        Array containing all the VGP latitudes for all the sites
+    phi_p : ndarray
+        Array containing all the VGP longitudes for all the sites
+
     """
-      
     Z = -B_radius   
     Y =  B_phi
     X = -B_theta
     
-    #Calcul de D et I 
+    # Computing p and D 
     H = np.sqrt(X**2 + Y**2)
     D = np.arctan2(Y,X)
     I = np.arctan2(Z,H)
     p = np.arctan2(2, np.tan(I))
     
-    cosp = np.cos(p) # array (179, 361)
+    cosp = np.cos(p) 
     sinp = np.sin(p)
     cosD = np.cos(D)
     sinD = np.sin(D)
-            
-    ls = np.radians(90 - theta) # ls is an array shape (179,)
-    phi_s = np.radians(phi) # np:shape(phi) = (361,)  
+
+    # Converting site degrees into radians     
+    ls = np.radians(90 - theta) 
+    phi_s = np.radians(phi) 
     
-    # phi_s_grid, ls_grid = np.meshgrid(phi_s, ls) # lambda_grid shape (179,361)
     phi_p = np.ones(phi_s.shape)
 
+    # Computing with Butler's method
     lp_rad = np.arcsin(np.sin(ls)*cosp + np.cos(ls)*sinp*cosD )
     beta = np.arcsin(sinp*sinD / np.cos(lp_rad))
                 
@@ -72,83 +98,36 @@ def coord_VGP_globe(theta, phi, B_radius, B_theta, B_phi):#, lat_site, lon_site)
     phi_p[~condition] = phi_s_degrees[~condition] + 180 - beta_degrees[~condition]  
                 
     lp = np.degrees(lp_rad)
-    
-    # a = 180 // len(phi)
-    # b = 90 // len(theta)
-    
-    # phi_site = lon_site + (180//a)     # hardcoded, see how to do if we change the 
-    # theta_site = lat_site + (90//b)    #  sizes of theta and phi
-    
-    # return VGP_lon, VGP_lat
-    # return lp[theta_site, phi_site], phi_p[theta_site, phi_site]
+
     return lp, phi_p
 
-# faire une fonction qui pourra déterminer combien d'inversion en combien de temps
-# il y a eu a un site donné. Il prendra en entrée histoire des coordonnées de VGP
-# avec le temps correspondant ainsi que les critère de Wicht
-
-# il faudrait faire une fonction qui ne determine le vgp qu'en une seule 
-# coordonées pour les temps de calculs.
-
-# def coord_VGP(theta, phi, phi_grid, B_radius, B_theta, B_phi): #, lat_site, lon_site) :
-#     """ Calcul les coordonnées d'un VGP à un unique site. 
-#         lat_site between [-89, 89] and lon_site between [-180,180]
-#     """
-      
-#     Z = -B_radius   
-#     Y =  B_phi
-#     X = -B_theta
-    
-#     #Calcul de D et I 
-#     H = np.sqrt(X**2 + Y**2)
-#     D = np.arctan2(Y,X)
-#     I = np.arctan2(Z,H)
-#     p = np.arctan2(2, np.tan(I))
-    
-#     cosp = np.cos(p) # array (179, 361)
-#     sinp = np.sin(p)
-#     cosD = np.cos(D)
-#     sinD = np.sin(D)
-            
-#     ls = np.radians(90 - theta) # ls is an array shape (179,)
-#     phi_s = np.radians(phi) # np:shape(phi) = (361,)  
-    
-#     phi_s_grid, ls_grid = np.meshgrid(phi_s, ls) # lambda_grid shape (179,361)
-#     phi_p = np.ones(phi_s_grid.shape)
-
-#     lp_rad = np.arcsin(np.sin(ls_grid)*cosp + np.cos(ls_grid)*sinp*cosD )
-#     beta = np.arcsin(sinp*sinD / np.cos(lp_rad))
-    
-#     # for i in range (0, len(theta)):
-#     #     for j in range (0,len(phi)):
-#     #         if cosp[i,j] >= np.sin(ls_grid[i,j])*np.sin(lp_rad[i,j]):
-#     #             phi_p[i,j] = np.degrees(phi_s_grid[i,j]) + np.degrees(beta[i,j])
-#     #         else :
-#     #             phi_p[i,j] = np.degrees(phi_s_grid[i,j]) + 180 - np.degrees(beta[i,j])
-                
-#     product = np.sin(ls_grid)*np.sin(lp_rad)
-#     condition = cosp >= product 
-    
-#     phi_s_grid_degrees = np.degrees(phi_s_grid)
-#     beta_degrees = np.degrees(beta)
-    
-#     phi_p[condition] = phi_s_grid_degrees[condition] + beta_degrees[condition]
-#     phi_p[~condition] = phi_s_grid_degrees[~condition] + 180 - beta_degrees[~condition]  
-                
-#     lp = np.degrees(lp_rad)
-    
-#     a = 180 // len(phi)
-#     b = 90 // len(theta)
-    
-#     phi_site = lon_site + (180//a)     # hardcoded, see how to do if we change the 
-#     theta_site = lat_site + (90//b)    #  sizes of theta and phi
-    
-#     # return VGP_lon, VGP_lat
-#     return lp[theta_site, phi_site], phi_p[theta_site, phi_site]
-
 def periods(time, latitude, theta_c, Tn , Ts):
-    """ Returns the tables T1 qnd T2 respectivly being the array  where theta
-        is between the criterions and when greater.
+    """ Returns the arrays T1 and T2 respectively being the array where theta
+        is between the criterions and when greater. Used to draw latitude vs.
+        time graph.
+
+    Parameters
+    ----------
+    time : ndarray
+        Array containing the time in years.
+    latitude : ndarray
+        Array containing the VGP latitude in degrees.
+    theta_c : float
+        Latitude criterion
+    Tn : float
+        Time in years determining the minimum time a crossing can be considered 
+        an event
+    Ts : float
+        Time in years determining the end or not of an event (stable period)
+
+    Returns
+    -------
+    ind : ndarray
+        Array containing the index of crossings in time and latitude.
+    T1 : ndarray
+        Array containing the latitudes is between -theta_c and theta_c.
+    T2 : ndarray
+        Array containing the latitudes is greater than |theta_c| .
     """
     
     t = [] # list of all passages (te, ts, te, ts ...)
@@ -192,10 +171,33 @@ def periods(time, latitude, theta_c, Tn , Ts):
     return ind, T1, T2
 
 def count(time, latitude, theta_c, Tn , Ts):
-    """ Returns interger of how many reversals there has been at a given 
-        site (theta, phi) during a given period (time). This function calculates
-        for chosen Wicht condition (latitude criterion and Tn) and VGP coords
-        (tab)
+    """ Returns an interger of how many reversals and excursions there has been
+        depending on the Wichts conditions and VGP latitudes.
+
+    Parameters
+    ----------
+    time : ndarray
+        Array containing the time in years.
+    latitude : ndarray
+        Array containing the VGP latitude in degrees.
+    theta_c : float
+        Latitude criterion
+    Tn : float
+        Time in years determining the minimum time a crossing can be considered 
+        an event
+    Ts : float
+        Time in years determining the end or not of an event (stable period)
+
+    Returns
+    -------
+    excursion : int
+        Number of excursions for every site.
+    excursion_time : ndarray
+        Array containing the lengths of the excursions for every site.
+    reversal : int
+        Number of reversals for every site.
+    reversal_time : ndarray
+        Array containing the lengths of the reversals for every site.
     """
     
     t = [] # list of all passages (te, ts, te, ts ...)
@@ -265,7 +267,6 @@ def count(time, latitude, theta_c, Tn , Ts):
                 i = i+1
             
         print('Count : ', len(length))
-        # print('Length of events : ', length)
         
     retrieve = [2*i for i in index]
                 
@@ -287,34 +288,7 @@ def count(time, latitude, theta_c, Tn , Ts):
     # print('Reversals : ', reversal) ,'Length of reversal : ', reversal_time)
     
     return excursion, excursion_time, reversal, reversal_time
-        
-"""
-Les conditions de Wicht sont : time and latitude criterion
-The latitude criterion speaks for itself : when the theta angle breaches a 
-certain value, it means an excursion or reversal is about to take place.
-Of this condition is valid longer than a certain time Tn (often 1000 yr), then
-we can count it as an excursion of reversal. The difference between the two is 
-if the final polarity is reversed or not.
 
-To determine two different events : two events are separated byy a stable 
-period with a duration Ts. Often this duration is the same as the core dipole
-decay time Td = 29 kyr. 
-
-As such, a stable period is defined as the time span where virtual magnetic
-poles stay closer to the geographical pole than the latitude criterion  for a
-total time of at least Ts. These periods should not be interrupted by periods
-with theta >= theta_c longer than Tn (see the time criterion on neglecting events)
-
-We now want to determine two things : 
-    - for a certain site with a given duration, how many reversals can we count?
-    - for a certain site, how long is the reversal?
-    
-We will use for first tests : 
-    - theta_c = 45 , latitude criterion
-    - Ts = Td = 29 kyr , stability period
-    - Tn = 1000 yr , if events are events or not
-    
-"""
     
 
     
