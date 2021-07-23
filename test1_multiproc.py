@@ -30,17 +30,10 @@ phi_1D = phi_grid.flatten()
 theta_1D = theta_grid.flatten()
 radius_1D = radius*np.ones_like(phi_1D)
 
-PHI = 360
-THETA = 180
-
 # Wicht criteria
 theta_c = 45.
 Tn = 400.
 Ts = 1000.
-
-# Site coordinates
-lat_site = 0
-lon_site = 0
 
 def split_file(fname, number_steps):
     
@@ -85,7 +78,6 @@ def fichiers(index:int, temps:List[float], ghlm:np.ndarray): # index
         os.makedirs(_PATH_NPZ)
 
     file_name = _PATH_NPZ + "vgp_history" + f"_{index}"
-    # file_name_lon = "vgp_lon_history" + f"_{index}"
 
     np.savez(file_name, theta_site = theta_1D, phi_site = phi_1D, 
              time = temps, vgp_lat_history = vgp_lat, vgp_lon_history = vgp_lon)
@@ -109,16 +101,7 @@ def merge_files():
     for number in sorted_numbers:
         for filename in fname_list:
             if "vgp_history_" + number + ".npz" == filename:
-                flist.append(filename)
-   # print(flist)
-   # sys.exit()
-
-#    flist3 = glob.glob(_PATH_NPZ + "vgp_history_???.npz")
-#    flist4 = glob.glob(_PATH_NPZ + "vgp_history_????.npz")
-#    flist5 = glob.glob(_PATH_NPZ + "vgp_history_?????.npz")
-#    flist6 = glob.glob(_PATH_NPZ + "vgp_history_??????.npz")
-#    print( sorted(flist3)+sorted(flist4)+sorted(flist5)+sorted(flist6) )
-#    flist = sorted(flist3)+sorted(flist4)+sorted(flist5)+sorted(flist6) 
+                flist.append(filename) 
 
     for k,file in enumerate(flist):
         data = np.load(file)
@@ -130,16 +113,13 @@ def merge_files():
             my_time = np.concatenate( (my_time, data['time']), dtype=float)
             my_vgp_lat = np.concatenate( (my_vgp_lat, data['vgp_lat_history']), dtype=float)
 
-    print(np.shape(my_time))
+    # print(np.shape(my_time))
    
     all_time = np.array( my_time, dtype = float )
     all_vgp_lat = np.array( my_vgp_lat, dtype=float )
 
     theta_site = data['theta_site']
     phi_site = data['phi_site']
-
-
-
 
     np.savez(_PATH_NPZ + 'all_vgp_history.npz', time = all_time, 
              theta_site = theta_site, phi_site = phi_site,
@@ -152,17 +132,9 @@ def Wicht(fname): #, lat_site, lon_site):
     npzfile = np.load(fname)
     theta_site = npzfile["theta_site"]
     phi_site = npzfile["phi_site"]
-    vgp_hist_lat = npzfile["vgp_lat_history"]
+    vgp_hist_lat = npzfile["vgp_lat_history"]   
     #vgp_hist_lon = npzfile["vgp_lon_history"]
     temps = npzfile["time"]
-
-    # a = PHI // len(phi)
-    # b = THETA // len(theta)
-    
-    # phi_index = (lon_site + 180) // a     
-    # theta_index = (lat_site + 90) // b   
-    
-    # vgp_lat, vgp_lon = vgp_hist_lat[theta_index, phi_index], vgp_hist_lon[theta_index, phi_index]
 
     mean_exc = np.zeros_like(theta_site)
     mean_rev = np.zeros_like(theta_site)
@@ -172,12 +144,11 @@ def Wicht(fname): #, lat_site, lon_site):
 
     for i_site ,j in zip(range(len(theta_site)), tqdm(range(len(theta_site)), 
                     initial=1, desc="Running", colour="blue")):
-        print(i_site)
-        exc[i_site], exc_time, rev[i_site], rev_time =count(temps, vgp_hist_lat[:,i_site], theta_c, Tn, Ts)
+        exc[i_site], exc_time, rev[i_site], rev_time = count(temps, vgp_hist_lat[:,i_site], theta_c, Tn, Ts)
         mean_exc[i_site] = np.mean(exc_time)
         mean_rev[i_site] = np.mean(rev_time)
-        print(exc, exc_time)
-        print(rev, rev_time)
+        # print(np.shape(exc), np.shape(exc_time))
+        # print(np.shape(rev), np.shape(rev_time))
     
     file_name = _PATH_NPZ + "Wicht_" + fname
     
@@ -196,9 +167,6 @@ def execute():
 
     fname = _PATH_NPZ + "all_vgp_history.npz"
     # nproc = int( os.getenv("OMP_NUM_THREADS") )
-    
-    # latitude_site = lat_site*np.ones(len(fname))
-    # longitude_site = lon_site*np.ones(len(fname))
 
     """
     t1 = time.time()
@@ -215,19 +183,21 @@ def main():
     nproc = int( os.getenv("OMP_NUM_THREADS") )
     ind, temps, ghlm = split_file(fname, nproc)
     
-    # t1 = time.time() # retourne temps sur ordi en s precision ns
-    # for it in range(len(temps)):
-    #     fichiers(ind[it], temps[it], ghlm[it])
-    # t2 = time.time()
-    # print(f'Time to process sequentially : {t2-t1:4.3f}')
-    
+    """
+    t1 = time.time() # retourne temps sur ordi en s precision ns
+    for it in range(len(temps)):
+        fichiers(ind[it], temps[it], ghlm[it])
+    t2 = time.time()
+    print(f'Time to process sequentially : {t2-t1:4.3f}')
+    """
+
     t1 = time.time()
     with Pool(nproc) as p:
         p.map(fichiers_one_arg, zip(ind, temps,ghlm))
     t2 = time.time()
     print(f'Time to process with multiprocessing : {t2-t1:4.3f}')
-    
+
 if __name__ == "__main__":
-    # main()
+    main()
     merge_files()
     execute()
