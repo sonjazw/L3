@@ -224,7 +224,7 @@ def count(time, latitude, theta_c, Tn , Ts):
         if 90 - np.abs(lat) <= theta_c and entree is True:
             entree = False
             t.append(temps)
-            ind.append(i)  # index of recrossing criterion
+            ind.append(i)  # index of recrossing the criterion
             crossing.append(lat)
 
     """
