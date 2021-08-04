@@ -90,7 +90,7 @@ def fichiers_one_arg(args):
 def merge_files():
     import glob
 
-    fname_list = glob.glob("vgp_history_*.npz")
+    fname_list = glob.glob( _PATH_NPZ + "vgp_history_*.npz")
     fname_number = []
     for name in fname_list:
         name = name[12:-4]
@@ -129,7 +129,7 @@ def merge_files():
 
 def Wicht(fname): #, lat_site, lon_site):
 
-    npzfile = np.load(fname)
+    npzfile = np.load( _PATH_NPZ + fname )
     theta_site = npzfile["theta_site"]
     phi_site = npzfile["phi_site"]
     vgp_hist_lat = npzfile["vgp_lat_history"]   
@@ -165,7 +165,7 @@ def Wicht_one_arg(args):
 def execute():
     import glob
 
-    fname = _PATH_NPZ + "all_vgp_history.npz"
+    fname = "all_vgp_history.npz"
     # nproc = int( os.getenv("OMP_NUM_THREADS") )
 
     """
@@ -198,6 +198,6 @@ def main():
     print(f'Time to process with multiprocessing : {t2-t1:4.3f}')
 
 if __name__ == "__main__":
-    main()
-    merge_files()
+    # main()
+    # merge_files()
     execute()
