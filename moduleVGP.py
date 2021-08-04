@@ -148,9 +148,14 @@ def periods(time, latitude, theta_c, Tn , Ts):
             t.append(temps)
             ind.append(i)  # index of recrossing criterion
             crossing.append(lat)
-            
-    time_theta_beneath = [t[i+1]-t[i] for i in range (0, len(t)-1) if i%2==0]
-    time_theta_above = [t[i+1]-t[i] for i in range (0, len(t)-1) if i%2!=0]
+    
+    # added conditions
+    if abs(latitude[0]) > theta_c :
+        time_theta_beneath = [t[i+1]-t[i] for i in range (0, len(t)-1) if i%2==0]
+        time_theta_above = [t[i+1]-t[i] for i in range (0, len(t)-1) if i%2!=0]
+    elif abs(latitude[0]) < theta_c :
+        time_theta_above = [t[i+1]-t[i] for i in range (0, len(t)-1) if i%2==0]
+        time_theta_beneath = [t[i+1]-t[i] for i in range (0, len(t)-1) if i%2!=0]
     
     # print(f'T1    {len(time_theta_beneath)}    {len(time_theta_above)}')
             
@@ -158,15 +163,18 @@ def periods(time, latitude, theta_c, Tn , Ts):
         print('Aucun croisement du critere de latitude')
         T1 = None
         T2 = None
-    elif len(time_theta_above) == len(time_theta_beneath) :
+    elif ( latitude[0] > theta_c ) and ( len(time_theta_above) == len(time_theta_beneath) ) : # added and condition 
         T1 = np.array(time_theta_beneath)
         T2 = np.array(time_theta_above)
+    elif ( latitude[0] < theta_c ) and ( len(time_theta_above) == len(time_theta_beneath) ) : # added three lines
+        T2 = np.delete(time_theta_above, 0)
+        T1 = np.delete(time_theta_beneath, -1)
     elif len(time_theta_above) < len(time_theta_beneath) :
         T1 = np.delete(time_theta_beneath, -1)
         T2 = np.array(time_theta_above)
     elif len(time_theta_above) > len(time_theta_beneath) :
         T1 = np.array(time_theta_beneath)
-        T2 = np.delete(time_theta_above, -1) 
+        T2 = np.delete(time_theta_above, 0)  # changed -1 to 0
     
     return ind, T1, T2
 
@@ -218,24 +226,35 @@ def count(time, latitude, theta_c, Tn , Ts):
             t.append(temps)
             ind.append(i)  # index of recrossing criterion
             crossing.append(lat)
-            
+
+    """
     time_theta_beneath = [t[i+1]-t[i] for i in range (0, len(t)-1) if i%2==0]
-    time_theta_above = [t[i+1]-t[i] for i in range (0, len(t)-1) if i%2!=0] 
+    time_theta_above = [t[i+1]-t[i] for i in range (0, len(t)-1) if i%2!=0]   
+    """
+
+    if abs(latitude[0]) > theta_c :
+        time_theta_beneath = [t[i+1]-t[i] for i in range (0, len(t)-1) if i%2==0]
+        time_theta_above = [t[i+1]-t[i] for i in range (0, len(t)-1) if i%2!=0]
+    elif abs(latitude[0]) < theta_c :
+        time_theta_above = [t[i+1]-t[i] for i in range (0, len(t)-1) if i%2==0]
+        time_theta_beneath = [t[i+1]-t[i] for i in range (0, len(t)-1) if i%2!=0]
             
-    
     if len(time_theta_above) == 0 or len(time_theta_beneath) == 0 :
         print('Aucun croisement du critere de latitude')
         T1 = None
         T2 = None
-    elif len(time_theta_above) == len(time_theta_beneath) :
+    elif ( latitude[0] > theta_c ) and ( len(time_theta_above) == len(time_theta_beneath) ) : # added and condition
         T1 = np.array(time_theta_beneath)
         T2 = np.array(time_theta_above)
+    elif ( latitude[0] < theta_c ) and ( len(time_theta_above) == len(time_theta_beneath) ) : # added three lines
+        T2 = np.delete(time_theta_above, 0)
+        T1 = np.delete(time_theta_beneath, -1)
     elif len(time_theta_above) < len(time_theta_beneath) :
         T1 = np.delete(time_theta_beneath, -1)
         T2 = np.array(time_theta_above)
     elif len(time_theta_above) > len(time_theta_beneath) :
         T1 = np.array(time_theta_beneath)
-        T2 = np.delete(time_theta_above, -1)     
+        T2 = np.delete(time_theta_above, 0)  # changed -1 to 0
     
     index = []
     temporary = []
